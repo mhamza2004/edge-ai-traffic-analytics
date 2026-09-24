@@ -1,733 +1,827 @@
-**# Edge-AI Traffic Analytics, Vehicle Flow Counting & Violation Detection Engine**
+# 🚦 Edge-AI Traffic Analytics Engine
+
+### Vehicle Flow Counting • Traffic Intelligence • Violation Detection • Edge AI
+
+<p align="center">
+  <strong>A working traffic-camera analytics engine for real-time vehicle detection, tracking, multi-lane flow analysis, speed estimation, traffic-violation detection, telemetry, and operational monitoring.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/YOLOv8-Ultralytics-111827?style=for-the-badge" alt="YOLOv8">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV">
+  <img src="https://img.shields.io/badge/MQTT-Telemetry-660066?style=for-the-badge" alt="MQTT">
+  <img src="https://img.shields.io/badge/Docker-Deployment-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+</p>
+
+---
+
+## 📸 Live System Preview
+
+### 🖥️ Live Traffic Operations Console
+
+The live operations dashboard brings together vehicle detection, tracking IDs, traffic counts, lane activity, violation monitoring, and incident logs in one interface.
+
+<p align="center">
+  <img src="docs/screenshots/live-traffic-operations-console.png" alt="Live Traffic Operations Console" width="100%">
+</p>
+
+### 📱 Automated Traffic Violation Alert
+
+Critical violations can trigger structured WhatsApp alerts containing the violation type, vehicle information, track ID, severity, timestamp, and supporting evidence.
+
+<p align="center">
+  <img src="docs/screenshots/traffic-violation-alert.png" alt="Automated Traffic Violation Alert" width="70%">
+</p>
+
+---
+
+## 🎯 What This Project Does
+
+This project turns a traffic-camera feed into an intelligent traffic-monitoring pipeline.
+
+```text
+Traffic Camera / Video
+        │
+        ▼
+┌──────────────────────┐
+│  YOLO Vehicle        │
+│  Detection           │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Multi-Object        │
+│  Tracking / IDs      │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Lane + Direction    │
+│  Analysis             │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Speed Estimation    │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Violation Detection │
+│  • Wrong-way         │
+│  • Red-light         │
+│  • Lane cut-in       │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ FastAPI + WebSocket  │
+│ Dashboard + MQTT     │
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│ Evidence + Alerts    │
+│ CSV + WhatsApp       │
+└──────────────────────┘
+```
+
+The system is designed to run on a development machine for testing and can be adapted for **Raspberry Pi 4/5 (64-bit)** and **NVIDIA Jetson-class edge hardware**.
+
+---
+
+## ✨ Key Capabilities
+
+| Capability | Description |
+|---|---|
+| 🚗 Vehicle Detection | YOLOv8n / COCO-pretrained detection for cars, trucks, buses, and motorcycles |
+| 🎯 Multi-Object Tracking | Stable vehicle IDs using Ultralytics ByteTrack |
+| 🛣️ Multi-Lane Counting | Directional inbound/outbound counting using tripwire line crossing |
+| ↔️ Direction Analysis | Vehicle movement and lane-direction analysis |
+| ⚡ Speed Estimation | Distance/time estimation between calibrated lines |
+| 🚨 Wrong-Way Detection | Detect vehicles moving against configured lane direction |
+| 🚦 Red-Light Detection | Signal-state-driven red-light violation logic |
+| ↪️ Illegal Lane Cut-In | Detect suspicious lane transitions |
+| 📸 Evidence Capture | Save violation snapshots with timestamps and available speed data |
+| 📡 MQTT Telemetry | Publish metrics, violations, and online/offline status |
+| ⚙️ FastAPI | REST, WebSocket, and MJPEG endpoints |
+| 🖥️ Live Dashboard | Single-page browser dashboard with no build step |
+| 📱 WhatsApp Alerts | Evolution API integration for critical violation notifications |
+| 📄 CSV Logging | Persist traffic counts and violation events |
+| 🎥 Annotated Video | Generate annotated output video for analysis |
+| 🐳 Docker | Docker resources for the engine and telemetry stack |
+| 🤖 Edge Export | NCNN / TFLite export path for edge inference and TensorRT path for Jetson |
 
-A working traffic-camera analytics engine: vehicle detection + tracking, multi-lane
+---
 
-directional counting, automated violation detection (wrong-way / red-light /
+## ✅ Verification Status
 
-illegal lane cut-in), MQTT + FastAPI telemetry, a live web dashboard, and
+This repository documents what was **actually run and verified**, rather than presenting untested features as completed.
 
-WhatsApp critical-alert hooks. Built to run on a laptop/dev machine for testing
+### Verified
 
-and on Raspberry Pi 4/5 (64-bit) for edge deployment.
+- ✅ YOLOv8n real-time vehicle detection
+- ✅ ByteTrack multi-object tracking
+- ✅ Multi-lane directional counting
+- ✅ Wrong-way detection
+- ✅ Red-light violation logic
+- ✅ Illegal lane cut-in logic through dedicated tests
+- ✅ Evidence snapshot generation
+- ✅ Speed estimation
+- ✅ MQTT telemetry with a local Mosquitto broker
+- ✅ FastAPI endpoints
+- ✅ WebSocket live feed
+- ✅ MJPEG video feed
+- ✅ Live web dashboard on Windows
+- ✅ CSV count and violation logging
+- ✅ Annotated output video
+- ✅ Evolution API WhatsApp integration
+- ✅ Real WhatsApp text + evidence-image delivery
 
-## 📸 System Preview
+### Still Hardware-Specific / Not Fully Verified
 
-### Live Traffic Operations Console
+| Area | Status |
+|---|---|
+| Raspberry Pi >25 FPS target | ⚠️ Requires benchmarking on the actual Pi hardware |
+| Motorcycle detection on bundled footage | ⚠️ Detector supports the COCO class, but bundled motorway footage contains no motorcycles |
+| NVIDIA Jetson TensorRT runtime/FPS | ⚠️ Export path exists but requires an actual Jetson with compatible CUDA/TensorRT |
 
-![Live Traffic Operations Console](docs/screenshots/live-traffic-operations-console.png)
+> **Important:** Development-machine performance numbers should not be treated as Raspberry Pi or Jetson performance numbers.
 
-The live operations console provides real-time visibility into vehicle detection, tracking IDs, traffic counts, lane activity, violations, and incident logs.
+---
 
-### Automated Traffic Violation Alert
+## 🧪 Real-World Testing & Validation
 
-![Automated Traffic Violation Alert](docs/screenshots/traffic-violation-alert.png)
+The bundled sample clip was used for the main pipeline validation:
 
-Detected traffic violations can trigger structured alerts containing the violation type, vehicle type, track ID, severity, timestamp, and supporting evidence.
+```text
+data/sample_video/demo_traffic.mp4
+```
 
-**## What's actually in this build (read this first)**
+The build was tested on CPU and through a live Windows dashboard pass.
 
-Everything below **\*\*was run and verified\*\***, most recently against the bundled
+### Detection
 
-sample clip (\`data/sample_video/demo_traffic.mp4\` — real, unannotated,
+YOLOv8n uses COCO-pretrained classes, so custom training is not required for the supported vehicle categories.
 
-BSD-3-licensed motorway footage from the Qengineering reference repo) on
+### Wrong-Way Detection
 
-this dev machine's CPU, plus a live Windows test pass:
+The normal traffic clip produced:
 
-\- ✅ Real-time detection with YOLOv8n (COCO-pretrained, no custom training
+```text
+2,501 frames
+0 false positives
+```
 
-  needed — Car/Truck/Bus/Motorbike are already COCO classes)
+A reversed real-footage test was also used to verify the wrong-way logic:
 
-\- ✅ Multi-object tracking with stable IDs (Ultralytics' built-in ByteTrack)
+```text
+22 / 41 vehicles flagged
+```
 
-\- ✅ Multi-lane directional counting (tripwire line-crossing, inbound/outbound)
+### Speed Estimation
 
-\- ✅ Wrong-way driving detection — verified with 0 false positives across the
+Across a 1,500-frame run:
 
-  entire 2,501-frame clip, AND verified to correctly fire (22/41 flagged) on
+```text
+86 vehicles
+18–60 km/h observed readings
+```
 
-  a real-footage-reversed test clip (see "Why three separate demos" below)
+The bundled distance calibration is illustrative and should be replaced with a measured distance for a real camera installation.
 
-\- ✅ Red-light jumping detection — signal-state-driven logic verified correct
+### Edge Export Benchmarks
 
-  via a controlled demo on real footage (see below)
+On the development CPU at 320px:
 
-\- ✅ Illegal lane cut-in detection — logic verified correct via dedicated
+```text
+NCNN:       ~49 FPS
+TFLite int8: ~110 FPS
+```
 
-  unit tests (\`tests/test_lane_cutin.py\`), since it doesn't occur naturally
+These are **development-machine measurements**, not Raspberry Pi measurements.
 
-  in the bundled clip's orderly traffic
+---
 
-\- ✅ Evidence snapshot saving per violation (annotated crop, timestamp, and
+## 🚦 Why Three Separate Violation Demos?
 
-  speed estimate when available)
+A single ordinary traffic clip cannot realistically demonstrate every violation type.
 
-\- ✅ Speed estimation — distance/time method between two calibrated lines
+For example, genuine wrong-way driving, a real controlled traffic signal, and erratic lane-cutting rarely occur together in legally usable footage.
 
-  (same principle real average-speed-check cameras use). Unit-tested
+Therefore, the project uses separate validation methods:
 
-  (\`tests/test_speed_estimator.py\`) and verified on the real clip: 86
+| Violation | Validation Method | Reason |
+|---|---|---|
+| Wrong-way | Real footage played in reverse | Produces genuine backward vehicle movement without fabricated vehicle imagery |
+| Red-light | Real footage + controlled signal window | Proves signal-state-driven violation logic |
+| Illegal lane cut-in | Dedicated unit tests | The bundled orderly footage does not naturally contain the required behavior |
 
-  vehicles got a completed reading over a 1,500-frame run, with plausible
+Detailed reproduction notes and result counts are documented in:
 
-  values (18-60 km/h, rising as an initial traffic queue clears — matches
+```text
+samples/README.md
+```
 
-  what's visible in the footage). The bundled \`distance_m\` calibration is
+The objective is to make the testing methodology explicit rather than presenting simulated results as naturally occurring events.
 
-  **\*\*illustrative, not precisely surveyed\*\*** — see \`config/config.yaml\` for
+---
 
-  how to calibrate it against a real measured distance for your camera.
+## 🐛 Engineering Bugs Found & Fixed
 
-\- ✅ MQTT telemetry (tested live against a local Mosquitto broker — metrics +
+The project went through dedicated debugging and validation instead of stopping at the first working detection demo.
 
-  violations + online/offline status all confirmed publishing)
+### 1. Wrong-Way Lane Geometry
 
-\- ✅ FastAPI service: \`/health\`, \`/api/metrics\`, \`/api/violations\`,
+A perspective-related lane-geometry issue caused normal vehicles near the horizon to be evaluated against the wrong lane direction.
 
-  \`/video_feed\` (MJPEG), \`/ws/live\` (WebSocket) — all tested and responding,
+Observed false-positive rates before the fix:
 
-  including a full live dashboard test on Windows
+```text
+17%
+↓
+7.5%
+```
 
-\- ✅ Live web dashboard (single HTML file, no build step) consuming the
+The issue was root-caused using trajectory tracing and fixed by replacing straight lane boundaries with perspective-correct trapezoids.
 
-  WebSocket feed
+Final verification:
 
-\- ✅ WhatsApp alerting (Evolution API, self-hosted via Docker) — \*\*real phone
+```text
+0 false positives
+2,501-frame clip
+```
 
-  delivery confirmed\*\*: a live Evolution API + PostgreSQL + Redis stack was
+### 2. Lane Cut-In Geometry Drift
 
-  stood up, a real WhatsApp number was linked via QR code, and actual
+Perspective caused lane assignments to drift as vehicles receded into the distance.
 
-  violation alerts (text + evidence image) were received on a real phone
+The detector was updated so that smooth single-direction perspective drift is not automatically treated as a lane change.
 
-  during a live pipeline run — not just a mock-server request-shape check
+Suspicious transitions are instead associated with:
 
-\- ✅ CSV logging of every count + violation event
+- Direction reversal
+- Jumps greater than one lane
 
-\- ✅ Annotated output video
+Final verification:
 
-**\*\*What's still unverified, and why:\*\***
+```text
+0 false positives on the full clip
+```
 
-\- The **\*\*>25 FPS on Raspberry Pi\*\*** target. On this dev machine's CPU the
+### 3. Tracking Non-Determinism
 
-  pipeline runs at \~9-10 FPS at 640px (no GPU here). Export to NCNN/TFLite
+Repeated CPU runs occasionally produced different track IDs or ID swaps when vehicles crossed paths.
 
-  (\`scripts/export_edge_model.py\`) and re-run \`scripts/benchmark_fps.py\` \*on
+This is a known challenge in multi-object tracking rather than a unique application bug.
 
-  the actual Pi\* — CPU throughput doesn't transfer between machines.
+The pipeline mitigates abrupt trajectory jumps using:
 
-\- **\*\*Motorcycles.\*\*** The bundled clip is UK motorway footage and genuinely
+```text
+max_step_displacement_px
+```
 
-  doesn't contain any (checked across the full clip at a lowered confidence
+This prevents implausible frame-to-frame movement from corrupting trajectory history.
 
-  threshold — 756 Car / 9 Truck / 9 Bus detections, 0 Motorbike). The
+---
 
-  detector already supports Motorbike (it's COCO class 3, zero code
+## 🏗️ Project Architecture
 
-  changes needed) — if you have footage with motorcycles/bikes, drop it in
-
-  and it'll be detected immediately. No properly-licensed clip with
-
-  motorcycles was available to source and bundle here (see below).
-
-**## Why three separate demos, not one video**
-
-A client-friendly request is "one video showing every violation type
-
-working." Being direct about why that's not what's shipped: genuine
-
-wrong-way driving, a real controlled traffic signal, and erratic lane-cutting
-
-essentially never co-occur in ordinary, legally-usable traffic footage — and
-
-none of it can be fabricated with fake/drawn vehicles, because YOLO won't
-
-detect a drawn rectangle as a car. So each violation type is demonstrated the
-
-most honest way that's actually possible with real vehicle imagery:
-
-\| Violation | Demo | Why |
-
-\|---|---|---|
-
-\| Wrong-way | Real footage, time-reversed | Genuine wrong-way footage isn't realistically obtainable; reversing real traffic creates genuinely-backward real vehicles |
-
-\| Red-light | Real footage + manually-controlled signal window | The clip has no real traffic light; the logic is signal-\*\*state\*\*-driven, not a light-color reader, so a controlled window proves the same logic a real signal feed would use |
-
-\| Illegal lane cut-in | Unit tests, not a video | Doesn't occur in this orderly real footage; the algorithm is proven correct directly instead of faked |
-
-All three are documented in detail, including exact result counts, in
-
-\`samples/README.md\`. This is slower than shipping one flashy video, but
-
-everything in this package is either real footage or an explicitly-labeled,
-
-disclosed test methodology — nothing pretends to be something it isn't.
-
-**## Two real bugs found and fixed during testing**
-
-1\. **\*\*Wrong-way lane-geometry bug.\*\*** Normal traffic crossing between two
-
-   "carriageway" polygons split by a straight vertical line got misjudged
-
-   against the wrong lane's allowed direction once the camera's perspective
-
-   converged near the horizon. Produced a 17%, then 7.5%, false-positive
-
-   rate before being properly root-caused with a dedicated trajectory-tracing
-
-   script and fixed by redrawing the lane polygons as perspective-correct
-
-   trapezoids. Re-verified: 0 false positives across the full 2,501-frame clip.
-
-2\. **\*\*Lane cut-in geometry drift (same root cause, different detector).\*\***
-
-   Individual in-carriageway lane polygons had the same straight-line
-
-   perspective issue, causing every vehicle's \*\*lane assignment\*\* to drift
-
-   Lane-1→2→3→4 as it receded into the distance — indistinguishable from a
-
-   real lane change if you just count "assignment changed." Fixed by only
-
-   counting a transition as suspicious when it reverses direction or jumps
-
-   more than one lane — smooth single-direction drift (what perspective
-
-   produces) is now correctly ignored. Verified with unit tests plus a
-
-   full-clip scan (0 false positives).
-
-A third issue was **\*\*CPU inference non-determinism\*\***, not a design bug: two
-
-back-to-back runs of the identical code/config/video produced different
-
-track IDs and, occasionally, an ID-swap after two vehicles crossed paths —
-
-a well-known hard problem in multi-object tracking generally, not unique to
-
-this codebase. Mitigated by discarding a track's trajectory history across
-
-any single frame-to-frame jump larger than a real vehicle could plausibly
-
-make (\`max_step_displacement_px\` in config.yaml) — this is a real
-
-robustness improvement for occlusion-heavy scenes generally, not just a
-
-one-off fix.
-
-The same non-determinism showed up again in \`scripts/demo_red_light_scenario.py\`:
-
-a narrow \~1-second RED window that reliably caught 3 vehicles on one machine
-
-caught only 1 on a second machine (same code, same video, different run) —
-
-not a bug, just a demo relying on an overly tight timing margin. Widened the
-
-window to \~6.7 seconds so it robustly catches multiple vehicle types
-
-regardless of minor tracking timing shifts; re-confirmed identical results
-
-(7 vehicles: Truck, Bus, 5 Cars) on both machines afterward.
-
-**## Jetson, WhatsApp, and camera-specific notes**
-
-\- **\*\*Jetson deployment\*\*** — the code runs on Jetson (Ultralytics + OpenCV both
-
-  support it), and the TensorRT export path is built
-
-  (\`scripts/export_edge_model.py --format engine\`), but a \`.engine\` file
-
-  must be compiled on the Jetson itself (TensorRT builds aren't portable
-
-  across machines) — see "Deploying to NVIDIA Jetson" below. No Jetson
-
-  board was available here to verify real FPS on.
-
-\- **\*\*WhatsApp delivery\*\*** — real, confirmed working. A self-hosted Evolution
-
-  API stack (Evolution API + PostgreSQL + Redis, via Docker Compose) was
-
-  stood up, a real WhatsApp number linked by QR code, and actual violation
-
-  alerts landed on a real phone during a live pipeline run — text alerts and
-
-  evidence-image alerts both confirmed. Disabled by default in the shipped
-
-  \`config.yaml\` (\`telemetry.whatsapp.enabled: false\`) so a fresh setup never
-
-  fires alerts at someone else's number by accident — flip to \`true\` and
-
-  fill in your own instance/credentials to go live. See "Connecting WhatsApp
-
-  alerts" below for the full setup (including the Docker Compose stack).
-
-\- **\*\*Auto-start on boot\*\*** — \`start_dashboard.bat\` and \`setup_autostart.bat\`
-
-  (project root) register the live dashboard server with Windows Task
-
-  Scheduler so it starts automatically on login, no manual command needed.
-
-  See "Running automatically on startup" below.
-
-\- **\*\*The bundled demo clip\*\*** (\`data/sample_video/demo_traffic.mp4\`) is raw,
-
-  unannotated motorway footage from the Qengineering reference repo
-
-  (BSD-3 licensed) — no pre-existing bounding boxes baked in, so every box
-
-  you see in the output is this engine's own detection. Lanes/lines/sub_lanes
-
-  in \`config/config.yaml\` are pre-calibrated for this specific clip's
-
-  640x480 camera angle. \`red_light\` is disabled by default for this clip
-
-  since it's open motorway footage with no real signal — see "Why three
-
-  separate demos" above for how it's still validated.
-
-Every real camera install needs \`scripts/calibrate.py\` run once to redraw
-
-lanes/lines/zones for that specific angle — this is true of every
-
-traffic-CV system in the research doc, not a shortcut taken here.
-
-Everything else is real, runnable code — not stubs. The NCNN and TFLite
-
-export paths (\`scripts/export_edge_model.py\`) were run and verified
-
-end-to-end on this CPU-only machine: exported, reloaded, run through
-
-\`benchmark_fps.py\`, and run through the full pipeline against the sample
-
-video — all confirmed working (NCNN: \~49 FPS on this x86 CPU at 320px;
-
-TFLite int8: \~110 FPS on this x86 CPU at 320px — again, these are \*this dev
-
-machine's\* numbers, not Pi numbers). One transient issue was found and
-
-fixed: on this environment's torch version, the TFLite export occasionally
-
-throws an error from an unrelated post-export validation step
-
-\*\*after\*\* the model file has already been written correctly — the script now
-
-detects this and continues if the output file exists rather than failing.
-
-The **\*\*Jetson TensorRT export\*\*** (\`--format engine\`) could not be executed at
-
-all here — this sandbox has no NVIDIA GPU/CUDA (\`torch.cuda.is_available()\`
-
-returns False), and TensorRT export hard-requires one. The code path exists
-
-and follows Ultralytics' documented export API the same way the working
-
-NCNN/TFLite paths do, but it has only been checked for syntax/argument
-
-correctness, not run. It needs to be tried on a real Jetson to confirm it
-
-actually works.
-
-\---
-
-**## Project layout**
-
-\`\`\`
-
+```text
 traffic-engine/
-
+│
 ├── app/
-│   ├── config.py          # loads config.yaml (+ env var overrides)
-│   ├── geometry.py         # point-in-polygon / line-crossing / angle math
-│   ├── detector.py         # YOLO detection + ByteTrack wrapper
-│   ├── flow_counter.py     # multi-lane directional counting
-│   ├── signal_state.py     # traffic-signal phase (simulator/manual/mqtt)
-│   ├── violations.py       # wrong-way / red-light / lane cut-in detectors
-│   ├── pipeline.py         # orchestrates capture -> detect -> count -> telemetry
-│   ├── shared_state.py     # thread-safe bridge between CV loop and API
-│   ├── telemetry/
-│   │   ├── events.py           # evidence snapshot saving
-│   │   ├── mqtt_publisher.py   # MQTT publisher
-│   │   └── whatsapp_alerts.py  # Evolution API WhatsApp client
-│   ├── api/main.py         # FastAPI service (REST + WebSocket + MJPEG)
-│   └── dashboard/index.html # live ops dashboard (single file)
+│   ├── api/
+│   │   └── main.py
+│   ├── telemetry/
+│   │   ├── events.py
+│   │   ├── mqtt_publisher.py
+│   │   └── whatsapp_alerts.py
+│   ├── config.py
+│   ├── detector.py
+│   ├── flow_counter.py
+│   ├── geometry.py
+│   ├── pipeline.py
+│   ├── shared_state.py
+│   ├── signal_state.py
+│   ├── speed_estimator.py
+│   ├── violations.py
+│   └── dashboard/
+│       └── index.html
+│
+├── config/
+│   └── config.yaml
+│
+├── data/
+│   └── sample_video/
+│
+├── docker/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── mosquitto.conf
+│
+├── docs/
+│   └── screenshots/
+│
+├── samples/
+│   ├── README.md
+│   ├── *_stats.csv
+│   ├── *_output.mp4
+│   ├── redlight_evidence/
+│   └── wrongway_evidence/
+│
 ├── scripts/
-│   ├── run_pipeline.py      # main CLI entrypoint
-│   ├── benchmark_fps.py     # measure real detector FPS on current hardware
-│   ├── export_edge_model.py # export to NCNN/TFLite for Raspberry Pi
-│   ├── calibrate.py         # grab a reference frame + pixel grid for site calibration
-│   └── demo_red_light_scenario.py  # controlled real-footage red-light demo (see samples/README.md)
-├── config/config.yaml       # all tunables: lanes, lines, zones, telemetry
-├── data/sample_video/       # demo clip(s) for testing without a camera
-├── docker/                  # Dockerfile + docker-compose (engine + Mosquitto)
-├── evolution-docker-compose.yml  # Evolution API + Postgres + Redis (WhatsApp alerts)
-├── start_dashboard.bat      # Windows: activate venv + start the live server
-├── setup_autostart.bat      # Windows: run once (as admin) to auto-start on login
-├── requirements.txt         # dev/desktop dependencies
-└── requirements-rpi.txt     # Raspberry Pi dependencies
+│   ├── run_pipeline.py
+│   ├── benchmark_fps.py
+│   ├── calibrate.py
+│   ├── demo_red_light_scenario.py
+│   └── export_edge_model.py
+│
+├── tests/
+│   ├── test_geometry.py
+│   ├── test_lane_cutin.py
+│   └── test_speed_estimator.py
+│
+├── evolution-docker-compose.yml
+├── requirements.txt
+├── requirements-rpi.txt
+├── start_dashboard.bat
+├── setup_autostart.bat
+└── README.md
+```
 
-\`\`\`
+---
 
-\---
+## 🛠️ Technology Stack
 
-**## Quick start (desktop / dev machine)**
+### Core
 
-\`\`\`bash
+- **Python**
+- **Ultralytics YOLOv8**
+- **OpenCV**
+- **ByteTrack**
+- **FastAPI**
+- **WebSocket**
+- **MQTT / Mosquitto**
 
-cd traffic-engine
+### Telemetry & Alerts
 
-python3 -m venv venv && source venv/bin/activate
+- **Evolution API**
+- **WhatsApp**
+- **PostgreSQL**
+- **Redis**
 
+### Deployment
+
+- **Docker / Docker Compose**
+- **Raspberry Pi 4/5**
+- **NVIDIA Jetson**
+- **NCNN**
+- **TensorFlow Lite**
+- **TensorRT**
+
+---
+
+## 🚀 Quick Start — Desktop / Development Machine
+
+### 1. Clone
+
+```bash
+git clone https://github.com/mhamza2004/edge-ai-traffic-analytics.git
+cd edge-ai-traffic-analytics
+```
+
+### 2. Create a virtual environment
+
+Linux/macOS:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-\# 1) Headless test run against the bundled sample video (writes annotated.mp4 + stats.csv)
+### 4. Run a headless test
 
+```bash
 python -m scripts.run_pipeline --config config/config.yaml --max-frames 300
+```
 
-\# 2) Or run it live with the dashboard + telemetry API:
+This writes the generated analysis output and statistics according to the configured output paths.
 
+### 5. Run the live dashboard
+
+```bash
 python -m scripts.run_pipeline --serve --config config/config.yaml
+```
 
-\# then open http\://localhost:8000/
+Then open:
 
-\`\`\`
+```text
+http://localhost:8000/
+```
 
-MQTT is optional for a first run — if no broker is reachable at
+---
 
-\`telemetry.mqtt.host:port\`, the publisher logs a warning once and the rest of
+## 🎥 Using Your Own Camera or Video
 
-the pipeline keeps working normally. To see real MQTT traffic:
+Edit:
 
-\`\`\`bash
+```text
+config/config.yaml
+```
 
-\# separate terminal
+Example:
 
-sudo apt install mosquitto mosquitto-clients   # or: brew install mosquitto
+```yaml
+video:
+  source: 0
+```
 
-mosquitto -d
+Supported source types include:
 
-mosquitto_sub -h localhost -t 'traffic/intersection-1/#' -v
+- USB webcam index
+- Raspberry Pi camera
+- RTSP URL
+- Local video file
 
-\`\`\`
+### Calibrate the Scene
 
-**## Using your own camera / video**
+Every real camera installation needs scene-specific calibration.
 
-Edit \`config/config.yaml\`:
+Run:
 
-\`\`\`yaml
+```bash
+python -m scripts.calibrate --source 0
+```
+
+Then use the generated calibration frame to configure:
+
+```text
+lanes
+counting_lines
+violations
+```
+
+inside:
+
+```text
+config/config.yaml
+```
+
+> Camera-specific calibration is required for reliable counting, lane analysis, and violation logic.
+
+---
+
+## 🍓 Raspberry Pi 4/5 Deployment
+
+Install the required system packages:
+
+```bash
+sudo apt update
+sudo apt install -y python3-opencv python3-picamera2 mosquitto mosquitto-clients
+```
+
+Install Raspberry Pi dependencies:
+
+```bash
+pip install -r requirements-rpi.txt --break-system-packages
+```
+
+### Export to NCNN
+
+```bash
+python -m scripts.export_edge_model --format ncnn --imgsz 320
+```
+
+This produces:
+
+```text
+yolov8n_ncnn_model/
+```
+
+Then configure:
+
+```yaml
+model:
+  weights: "yolov8n_ncnn_model"
 
 video:
+  imgsz: 320
+```
 
-  source: 0                 # USB webcam index, "picam" on a Pi, or an RTSP URL / file path
+### Benchmark the Actual Pi
 
-\`\`\`
+```bash
+python -m scripts.benchmark_fps \
+  --weights yolov8n_ncnn_model \
+  --imgsz 320 \
+  --frames 200
+```
 
-Then **\*\*recalibrate lanes and lines for your camera angle\*\*** — this is required,
+### Start the System
 
-not optional, for correct counting/violation logic:
-
-\`\`\`bash
-
-python -m scripts.calibrate --source 0
-
-\# open outputs/calibration_frame.jpg, read off pixel coordinates,
-
-\# paste them into config/config.yaml under lanes / counting_lines / violations
-
-\`\`\`
-
-To reproduce the wrong-way demo yourself, \`data/sample_video/wrongway_test_clip.mp4\`
-
-is included (the real, reversed segment described in \`samples/README.md\`) —
-
-point \`video.source\` at it and run the pipeline normally.
-
-\---
-
-**## Deploying to Raspberry Pi 4/5 (64-bit)**
-
-\`\`\`bash
-
-sudo apt update && sudo apt install -y python3-opencv python3-picamera2 mosquitto mosquitto-clients
-
-pip install -r requirements-rpi.txt --break-system-packages
-
-\# Export the model to an edge-friendly format (do this once, on the Pi or a dev machine)
-
-python -m scripts.export_edge_model --format ncnn --imgsz 320
-
-\# -> produces yolov8n_ncnn_model/
-
-\# Point config.yaml at it
-
-\#   model:
-
-\#     weights: "yolov8n_ncnn_model"
-
-\#   video:
-
-\#     imgsz: 320
-
-\# Confirm real throughput on THIS board before going live
-
-python -m scripts.benchmark_fps --weights yolov8n_ncnn_model --imgsz 320 --frames 200
-
-\# Run for real, with the dashboard reachable on the network
-
+```bash
 python -m scripts.run_pipeline --serve --config config/config.yaml
+```
 
-\`\`\`
+If the specific Pi/camera combination does not reach the desired throughput, `video.frame_skip` can be adjusted.
 
-If 320px NCNN still doesn't clear \~25 FPS on your specific Pi board/camera
+---
 
-combo, the next lever is \`video.frame_skip\` in config.yaml (process every
+## 🟩 Docker Deployment
 
-2nd frame) — counting/violation logic tolerates this fine since tracking
+The repository contains Docker resources for the engine and Mosquitto.
 
-carries IDs across skipped frames.
-
-**### Docker (bundles Mosquitto + the engine)**
-
-\`\`\`bash
-
+```bash
 cd docker
-
 docker compose up --build
+```
 
-\`\`\`
+For WhatsApp alerting, the separate Evolution API stack is provided at:
 
-\---
+```text
+evolution-docker-compose.yml
+```
 
-**## Deploying to NVIDIA Jetson (Orin / Xavier / Nano)**
+---
 
-Jetson uses TensorRT instead of NCNN/TFLite for its fastest inference path.
+## 🟢 NVIDIA Jetson Deployment
 
-Two important differences from the Pi flow above:
+Jetson uses TensorRT for its optimized inference path.
 
-1\. **\*\*Torch/torchvision must match your JetPack version.\*\*** NVIDIA ships its
+### Important
 
-   own builds for Jetson (the regular pip wheels don't include Jetson GPU
+Torch and torchvision must match the JetPack version installed on the device.
 
-   support) — install those first, following NVIDIA's official Jetson +
+The TensorRT engine must also be built on the target Jetson because the resulting `.engine` file is tied to the target GPU / TensorRT / CUDA environment.
 
-   Ultralytics setup guide for your exact JetPack version before installing
+### Export on the Jetson
 
-   the rest of \`requirements.txt\`.
-
-2\. **\*\*The TensorRT export MUST run on the Jetson itself\*\***, not on a dev
-
-   laptop — a \`.engine\` file is compiled for the exact GPU + TensorRT + CUDA
-
-   versions of the machine that built it and will not run anywhere else.
-
-\`\`\`bash
-
-\# On the Jetson, after JetPack + the matching torch/torchvision are installed:
-
-pip install -r requirements.txt
-
-\# Export (run this ON the Jetson):
-
+```bash
 python -m scripts.export_edge_model --format engine --imgsz 320 --half
+```
 
-\# -> produces yolov8n.engine
+Then:
 
-\# Point config.yaml at it
+```yaml
+model:
+  weights: "yolov8n.engine"
 
-\#   model:
+video:
+  imgsz: 320
+```
 
-\#     weights: "yolov8n.engine"
+Benchmark:
 
-\#   video:
+```bash
+python -m scripts.benchmark_fps \
+  --weights yolov8n.engine \
+  --imgsz 320 \
+  --frames 200
+```
 
-\#     imgsz: 320
+Run:
 
-\# Confirm real throughput on this board
-
-python -m scripts.benchmark_fps --weights yolov8n.engine --imgsz 320 --frames 200
-
+```bash
 python -m scripts.run_pipeline --serve --config config/config.yaml
+```
 
-\`\`\`
+---
 
-\---
+## 📡 MQTT Telemetry
 
-**## Connecting WhatsApp alerts (Evolution API)**
+MQTT is optional for the first run.
 
-**\*\*Already verified end-to-end, on a real phone.\*\*** A full self-hosted stack
+The engine can publish:
 
-(Evolution API + PostgreSQL + Redis) was run via Docker Compose, a real
+- Traffic metrics
+- Violation events
+- Online/offline status
 
-WhatsApp number was linked by scanning a QR code in Evolution API's own
+Example subscriber:
 
-manager dashboard, and actual violation alerts — both plain text and
+```bash
+mosquitto_sub -h localhost -t 'traffic/intersection-1/#' -v
+```
 
-evidence-image-attached — were confirmed arriving on that phone during a
+The pipeline continues operating if an MQTT broker is unavailable.
 
-live pipeline run. This is a genuine working integration, not just a
+---
 
-request-shape check.
+## 📱 WhatsApp Critical Alerts
 
-**### 1. Stand up Evolution API**
+WhatsApp alerting is implemented using a self-hosted **Evolution API + PostgreSQL + Redis** stack.
 
-Evolution API needs a Postgres database and (for reliable operation) Redis —
+The integration was verified end-to-end with:
 
-it will not run standalone. Use the bundled \`evolution-docker-compose.yml\`
+- A real WhatsApp number
+- QR-based device linking
+- Text violation alerts
+- Evidence-image alerts
+- Live pipeline execution
 
-(project root):
+### Start Evolution API
 
-\`\`\`powershell
-
+```powershell
 docker compose -f evolution-docker-compose.yml up -d
+```
 
-docker ps   # confirm evolution-api, evolution-postgres, evolution-redis are all "Up"
+Check:
 
-\`\`\`
+```powershell
+docker ps
+```
 
-This starts Evolution API on \`http\://localhost:8080\` with API key
+Open:
 
-\`my-secret-key-123\` (change this before any real deployment — it's a demo
+```text
+http://localhost:8080/manager
+```
 
-value, see "Security note" below).
+Create/link the WhatsApp instance and configure the engine in:
 
-**### 2. Link a WhatsApp number**
+```text
+config/config.yaml
+```
 
-1\. Open \`http\://localhost:8080/manager\` in a browser, log in with the API key.
+Example:
 
-2\. Create a new instance (Channel: **\*\*Baileys\*\***) — name it e.g. \`traffic-alerts\`.
-
-3\. Click **\*\*Get QR Code\*\***, then on the phone: WhatsApp → Settings → Linked
-
-   Devices → Link a Device → scan it.
-
-4\. Status should flip to **\*\*Open/Connected\*\***.
-
-**### 3. Point the engine at it**
-
-In \`config/config.yaml\` under \`telemetry.whatsapp\`:
-
-\`\`\`yaml
-
+```yaml
 telemetry:
+  whatsapp:
+    enabled: true
+    evolution_api_url: "http://localhost:8080"
+    evolution_api_key: "YOUR_SECRET"
+    instance: "traffic-alerts"
+    to_number: "923XXXXXXXXX"
+    alert_on:
+      - "wrong_way"
+      - "red_light"
+      - "illegal_lane_change"
+    min_seconds_between_alerts: 15
+```
 
-  whatsapp:
+### 🔐 Security
 
-    enabled: true
+The repository's demo credentials are **not suitable for production**.
 
-    evolution_api_url: "http\://localhost:8080"
+Before a real deployment:
 
-    evolution_api_key: "my-secret-key-123"   # match whatever you set in the compose file
+1. Change the Evolution API key.
+2. Change the PostgreSQL password.
+3. Configure your own recipient number.
+4. Keep secrets out of Git.
+5. Enable WhatsApp alerting only after configuration is complete.
 
-    instance: "traffic-alerts"
+The shipped configuration keeps WhatsApp disabled by default.
 
-    to_number: "923XXXXXXXXX"                 # E.164 without '+'
+---
 
-    alert_on: ["wrong_way", "red_light", "illegal_lane_change"]
+## 🖥️ Windows Auto-Start
 
-    min_seconds_between_alerts: 15
+Two scripts are included:
 
-\`\`\`
+### `start_dashboard.bat`
 
-Critical violations will now push a WhatsApp message with the evidence
+Activates the virtual environment and starts the live dashboard server.
 
-snapshot attached, rate-limited by \`min_seconds_between_alerts\` so a bad
+### `setup_autostart.bat`
 
-minute doesn't spam the recipient.
+Registers the dashboard with Windows Task Scheduler.
 
-**### Security note before a real deployment**
+Run it once as Administrator.
 
-\`my-secret-key-123\` and the Postgres password in
+To remove the scheduled task:
 
-\`evolution-docker-compose.yml\` are demo values used during testing — change
+```powershell
+schtasks /Delete /TN "TrafficAnalyticsEngine" /F
+```
 
-both to strong, unique values before pointing this at a real WhatsApp
+Docker Desktop should also be configured to start on login if the Evolution API stack needs to survive a reboot.
 
-number or leaving it running anywhere reachable. Also swap \`to_number\` from
+---
 
-any personal test number to the actual intended recipient (e.g. the
+## 📊 Sample Outputs
 
-operations/security desk that should receive real violation alerts).
+The `samples/` directory contains output generated from actual runs:
 
-**### Safe default**
+```text
+samples/
+├── 1_main_pipeline_output.mp4
+├── 1_main_pipeline_stats.csv
+├── 2_wrongway_demo_output.mp4
+├── 2_wrongway_demo_stats.csv
+├── 3_redlight_demo_output.mp4
+├── redlight_evidence/
+├── wrongway_evidence/
+└── README.md
+```
 
-The shipped \`config.yaml\` has \`telemetry.whatsapp.enabled: false\` and
+These files provide reproducible evidence for the main pipeline and the dedicated violation demonstrations.
 
-placeholder credentials — a fresh checkout never sends alerts to anyone
+---
 
-until you deliberately configure and enable it.
+## ⚙️ Tuning Violation Sensitivity
 
-\---
+Violation thresholds are configured in:
 
-**## Running automatically on startup (Windows)**
+```text
+config/config.yaml
+```
 
-Two scripts (project root) set the live dashboard server to start on its
+Examples include:
 
-own, no manual command needed each time:
+```text
+angle_threshold_deg
+confirm_frames
+max_switches_allowed
+window_seconds
+```
 
-\- **\*\*\`start_dashboard.bat\`\*\*** — activates the venv and starts
+When moving to a new camera, recalibration and threshold tuning are expected parts of deployment.
 
-  \`scripts.run_pipeline --serve\`. Waits 20s first so Docker/network have
+---
 
-  time to come up after login. Double-click to test it manually.
+## 🔒 Repository & Data Handling
 
-\- **\*\*\`setup_autostart.bat\`\*\*** — run **\*\*once\*\***, as Administrator (right-click →
+Large model and generated assets are intentionally excluded where appropriate.
 
-  "Run as administrator"), to register \`start_dashboard.bat\` with Windows
+The repository ignores:
 
-  Task Scheduler under an "at logon" trigger.
+```text
+__pycache__/
+*.pyc
+*.pt
+*.onnx
+*_ncnn_model/
+*_saved_model/
+venv/
+.venv/
+outputs/*
+evidence/*
+```
 
-To undo: \`schtasks /Delete /TN "TrafficAnalyticsEngine" /F\`
+Selected demonstration videos are explicitly included because they are part of the documented testing workflow.
 
-Note: this starts the Python/FastAPI server, not the Evolution API Docker
+---
 
-stack — set Docker Desktop's own "start on login" option (Settings →
+## 📚 Reference Repositories
 
-General) if WhatsApp alerts should also survive a reboot unattended.
+The project research and implementation drew on the following reference projects:
 
-\---
+- Qengineering — `Traffic-Counter-RPi_64-bit`
+- sopheakchan — `realtime-vehicle-detection`
+- Prince-IISc-CalUniv — `Edge-AI-Traffic-Analytics`
 
-**## Tuning violation sensitivity**
+The referenced repositories informed patterns around traffic counting, MQTT, tracking, geometry, violation/congestion analysis, and edge deployment.
 
-All thresholds live in \`config/config.yaml\` under \`violations:\` — e.g.
+The project's specific wrong-way, red-light, and illegal lane cut-in logic was designed for this implementation rather than copied verbatim from those repositories.
 
-\`angle_threshold_deg\` and \`confirm_frames\` for wrong-way driving, or
+---
 
-\`max_switches_allowed\` / \`window_seconds\` for lane cut-ins. If you see false
+## 🗺️ Project Roadmap
 
-positives on a new camera, that's almost always a calibration/threshold issue,
+Potential future extensions include:
 
-not a code bug — start with \`scripts/calibrate.py\` and widen the thresholds
+- [ ] Additional traffic violation types
+- [ ] License plate recognition
+- [ ] Automatic number plate extraction
+- [ ] Traffic-density analytics
+- [ ] Historical traffic reporting
+- [ ] Multi-camera management
+- [ ] Improved camera calibration workflow
+- [ ] Edge-device performance benchmarking
+- [ ] Real-time alert escalation
+- [ ] Centralized traffic intelligence dashboard
+- [ ] Database-backed incident history
 
-before assuming the detector is broken.
+---
 
-\---
+## 👨‍💻 Author
 
-**## Sample outputs**
+### Muhammad Hamza
 
-\`samples/\` contains real output from actual runs of this engine — annotated
+**Software Engineering Student | AI Automation | Backend Development | Computer Vision**
 
-videos, stats CSVs, and evidence snapshots for the main pipeline, the
+[![GitHub](https://img.shields.io/badge/GitHub-mhamza2004-181717?style=for-the-badge&logo=github)](https://github.com/mhamza2004)
 
-wrong-way demo, and the red-light demo, each with exact result counts. See
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Muhammad%20Hamza-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/muhammadhamza3304)
 
-\`samples/README.md\` for what each one proves and how it was produced.
+---
 
-\---
+## ⭐ Project Status
 
-**## Reference repos this build draws on**
+**Core traffic analytics and violation-detection workflow completed and tested.**
 
-Per the original research brief: Qengineering's Traffic-Counter-RPi_64-bit
+The project is maintained as a practical **Edge AI + Computer Vision traffic intelligence system**, with documented testing results, dedicated violation demos, edge deployment paths, telemetry, dashboard monitoring, and real WhatsApp alert integration.
 
-(RPi + MQTT pattern), sopheakchan's realtime-vehicle-detection (line-crossing
-
-counting pattern), and Prince-IISc-CalUniv's Edge-AI-Traffic-Analytics
-
-(violation/congestion/speed concepts) were all cloned and reviewed while
-
-building this. Wrong-way / red-light / lane-cut-in logic specifically isn't
-
-present verbatim in any of those repos (none of the three implement it) —
-
-it's been designed fresh here to match the ticket's requirements, using the
-
-same tracking/geometry foundation those repos establish.
+If you find the project useful or interesting, consider giving the repository a ⭐.
