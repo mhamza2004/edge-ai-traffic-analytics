@@ -1,0 +1,155 @@
+# =============================================================================
+# Edge-AI Traffic Analytics — Main Configuration
+# Tune the coordinates below to match YOUR camera's field of view.
+# Use `python -m scripts.calibrate --source <video_or_0>` to grab a reference
+# frame and read off pixel coordinates for lanes / lines / zones.
+# =============================================================================
+
+video:
+  source: "data/sample_video/demo_traffic.mp4"
+  imgsz: 640
+  conf: 0.35 # detection confidence threshold
+  iou: 0.5 # NMS IoU threshold
+  frame_skip: 1 # process every Nth frame (raise on slower hardware)
+  loop_video_file: false
+
+model:
+  # Point this at a .pt (dev/desktop), or an exported .tflite / *_ncnn_model directory (Raspberry Pi).
+  # See scripts/export_edge_model.py for exporting to TFLite/NCNN.
+  weights: "yolov8n.pt"
+  # COCO class ids used out of the box for vehicle detection (no custom training required)
+  classes:
+    2: Car
+    3: Motorbike
+    5: Bus
+    7: Truck
+
+tracker:
+  # ByteTrack (bundled with Ultralytics) keeps stable IDs across frames for counting/violations
+  type: "bytetrack.yaml"
+  max_age_frames: 30 # how long to remember a lost track before dropping it
+
+# Calibrated for the bundled demo_traffic.mp4 (640x480 motorway footage, camera on an
+# overpass looking down the road). Re-run scripts/calibrate.py and redraw these for any other camera.
+# NOTE: the near carriageway's right edge is a slanted trapezoid, not a vertical line --
+# this camera's perspective means the road visually narrows toward a vanishing point around
+# (530, 85), so a straight vertical cut would misclassify near-carriageway traffic as the far
+# carriageway once it gets far enough away (this caused a wrong-way false-positive bug during
+# testing -- see README).
+lanes:
+  - name: "Near-Carriageway"
+    direction: "outbound"
+    allowed_vector: [0.15, -1] # traffic recedes up/away from camera toward the far overpass
+    polygon: [[0, 480], [480, 480], [535, 85], [0, 85]]
+  - name: "Far-Carriageway"
+    direction: "inbound"
+    allowed_vector: [-0.15, 1] # opposite carriageway (small/distant sliver visible past the median), traffic approaches the camera
+    polygon: [[545, 150], [640, 130], [640, 75], [510, 80]]
+
+counting_lines:
+  - name: "main-tripwire"
+    p1: [0, 350]
+    p2: [480, 350]
+  - name: "far-tripwire"
+    p1: [520, 120]
+    p2: [640, 105]
+
+# Fine-grained individual lanes WITHIN Near-Carriageway, used only for illegal lane-change /
+# cut-in detection (a "lane change" is meaningless at the whole-carriageway level used above
+# for counting/wrong-way). Four lanes across the visible carriageway width, narrowing toward
+# the same vanishing point as Near-Carriageway itself.
+sub_lanes:
+  - name: "Lane-1"
+    index: 1
+    polygon: [[0, 480], [120, 480], [134, 85], [0, 85]]
+  - name: "Lane-2"
+    index: 2
+    polygon: [[120, 480], [240, 480], [268, 85], [134, 85]]
+  - name: "Lane-3"
+    index: 3
+    polygon: [[240, 480], [360, 480], [401, 85], [268, 85]]
+  - name: "Lane-4"
+    index: 4
+    polygon: [[360, 480], [480, 480], [535, 85], [401, 85]]
+
+violations:
+  wrong_way:
+    enabled: true
+    min_track_history: 10 # frames of movement needed before judging direction
+    min_step_displacement_px: 3 # frame-to-frame steps smaller than this are treated as jitter, not motion
+    min_valid_steps: 6 # need at least this many "real motion" steps before judging
+    consistency_ratio: 0.75 # fraction of valid steps that must agree on "opposite direction"
+    angle_threshold_deg: 140 # angle vs lane's allowed_vector beyond which a single step counts as "opposing"
+    confirm_frames: 8 # consecutive frames the consistency check must hold before raising the event
+    min_bbox_height_px: 18 # skip vehicles too small/far away for direction to be measured reliably
+    max_step_displacement_px:
+      25 # a single frame-to-frame jump bigger than this is treated as a likely
+      # tracker ID-swap (occlusion/crossing) rather than real motion, and
+      # discards the track's history up to that point instead of using it
+
+  red_light:
+    enabled:
+      false # signal-STATE-driven (simulator/manual/mqtt), not a visual light-color reader --
+      # see scripts/demo_red_light_scenario.py for a controlled demo on real footage,
+      # and enable this + set signal_source: "mqtt" for a real signalized intersection.
+    stop_line:
+      p1: [50, 300]
+      p2: [420, 300]
+    signal_source: "simulator" # simulator | manual | mqtt
+    simulator:
+      green_seconds: 12
+      yellow_seconds: 3
+      red_seconds: 8
+
+  illegal_lane_change:
+    enabled: true
+    zone_polygon: [[0, 470], [480, 470], [500, 200], [0, 200]] # spans all 4 sub_lanes so a real lane switch can be detected
+    max_switches_allowed: 1
+    window_seconds: 4
+
+speed_estimation:
+  enabled: true
+  # Distance-over-time method (same principle real average-speed-check cameras use):
+  # a vehicle's speed = distance_m / (real time taken to cross line_a then line_b).
+  # This only needs the distance BETWEEN these two lines to be correct -- it does not
+  # need a whole-frame pixels-per-meter calibration, so perspective elsewhere in the
+  # image doesn't distort it. distance_m below is an ILLUSTRATIVE estimate for the
+  # bundled demo clip (not precisely surveyed) -- replace it with an actual measured
+  # real-world distance for your own camera before treating readings as accurate
+  # (e.g. pace out the distance on site, use a rangefinder, or use known road-marking
+  # standards visible in your footage).
+  max_reasonable_kmh: 180 # discard any reading above this as a measurement glitch
+  zones:
+    - name: "Near-Carriageway-Speed-Check"
+      line_a: { p1: [0, 400], p2: [480, 400] }
+      line_b: { p1: [0, 250], p2: [500, 250] }
+      distance_m: 18.0 # ILLUSTRATIVE -- see note above
+
+telemetry:
+  mqtt:
+    enabled: true
+    host: "localhost"
+    port: 1883
+    client_id: "edge-traffic-engine"
+    topic_prefix: "traffic/intersection-1"
+    publish_interval_seconds: 1.0
+
+  whatsapp:
+    enabled: false
+    evolution_api_url: "http://localhost:8080" # your self-hosted Evolution API base URL
+    evolution_api_key: "CHANGE_ME"
+    instance: "traffic-alerts"
+    to_number: "92XXXXXXXXXX" # E.164 without '+'
+    alert_on: ["wrong_way", "red_light", "illegal_lane_change"]
+    min_seconds_between_alerts: 15 # basic rate limiting so one bad minute doesn't spam WhatsApp
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+output:
+  save_annotated_video: true
+  annotated_path: "outputs/annotated.mp4"
+  evidence_dir: "evidence"
+  stats_csv: "outputs/stats.csv"
+  draw_overlays: true

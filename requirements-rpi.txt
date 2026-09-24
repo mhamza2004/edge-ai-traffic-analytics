@@ -1,0 +1,25 @@
+# Raspberry Pi 4/5 (64-bit Raspberry Pi OS) deployment requirements.
+# Install system packages first, then these via pip.
+#
+#   sudo apt update && sudo apt install -y python3-opencv python3-picamera2 mosquitto mosquitto-clients
+#   pip install -r requirements-rpi.txt --break-system-packages
+#
+# Notes:
+# - opencv-python-headless is used instead of opencv-python (no GUI deps needed on a headless Pi).
+# - picamera2 ships as a system package on Raspberry Pi OS (apt), not pip -- do not pip install it.
+# - For NCNN export/inference, `ncnn` wheels install cleanly on 64-bit Pi OS via pip.
+# - Skip ultralytics' torch dependency for pure-inference edge deployments by exporting to
+#   NCNN or TFLite first (scripts/export_edge_model.py) on a dev machine, then deploying just
+#   the exported model + this requirements file to the Pi.
+
+ultralytics>=8.3.0
+opencv-python-headless>=4.9.0
+numpy>=1.26.0
+paho-mqtt>=1.6.1,<2.0.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pyyaml>=6.0
+requests>=2.31.0
+python-multipart>=0.0.9
+websockets>=12.0
+ncnn>=1.0.20240410

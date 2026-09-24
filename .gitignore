@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pt
+*.onnx
+*_ncnn_model/
+*_saved_model/
+venv/
+.venv/
+outputs/*
+!outputs/.gitkeep
+evidence/*
+!evidence/.gitkeep
+*.mp4
+!data/sample_video/demo_traffic.mp4
+!samples/*.mp4
+.DS_Store
+!data/sample_video/wrongway_test_clip.mp4

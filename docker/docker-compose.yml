@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: traffic-mqtt
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+
+  traffic-engine:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: traffic-engine
+    depends_on:
+      - mosquitto
+    ports:
+      - "8000:8000"
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      # Uncomment and fill in once your Evolution API instance is running:
+      # - EVOLUTION_API_URL=http://evolution-api:8080
+      # - EVOLUTION_API_KEY=your-key-here
+      # - EVOLUTION_INSTANCE=traffic-alerts
+      # - EVOLUTION_TO_NUMBER=923000000000
+    volumes:
+      - ../config:/app/config
+      - ../data:/app/data
+      - ../outputs:/app/outputs
+      - ../evidence:/app/evidence
+    devices:
+      - "/dev/video0:/dev/video0"   # comment out if using a video file / RTSP source instead of a USB cam
+    restart: unless-stopped

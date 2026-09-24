@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traffic Ops — Live Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#05070A;
+    --panel:#0A0E14;
+    --panel-raised:#0D131B;
+    --hair:#1B222C;
+    --hair-soft:#141A22;
+    --text:#E7ECF2;
+    --dim:#66707D;
+    --dim-2:#3E4650;
+    --amber:#FFB300;
+    --amber-dim:#8A6318;
+    --green:#34D399;
+    --red:#FF4747;
+    --font-display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--font-display);
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(255,179,0,.05), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(52,211,153,.04), transparent 55%);
+  }
+
+  /* ---------- top instrument strip ---------- */
+  .topstrip{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;border-bottom:1px solid var(--hair);
+    background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+  }
+  .topstrip .left{display:flex;align-items:center;gap:16px}
+  .brand{display:flex;flex-direction:column;line-height:1.15}
+  .brand .title{font-weight:700;font-size:15px;letter-spacing:.01em}
+  .brand .sub{font-family:var(--font-mono);font-size:11px;color:var(--dim);margin-top:2px}
+
+  .blip{position:relative;width:16px;height:16px;flex-shrink:0}
+  .blip .dot{position:absolute;inset:5px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .blip .ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--amber);opacity:0;animation:blipring 2.2s ease-out infinite}
+  @keyframes blipring{0%{transform:scale(.3);opacity:.7}100%{transform:scale(2.2);opacity:0}}
+
+  .instrument{
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--font-mono);font-size:12px;color:var(--dim);
+    padding:6px 12px;border:1px solid var(--hair);border-radius:3px;background:var(--panel);
+  }
+  .instrument b{color:var(--text);font-weight:600}
+  .topstrip .right{display:flex;align-items:center;gap:10px}
+
+  .accent-bar{height:3px;background:linear-gradient(90deg, var(--red), var(--amber), var(--green));opacity:.85}
+
+
+  /* ---------- big signal housing, overlaid on the video ---------- */
+  .signal-housing{
+    position:absolute;top:14px;right:14px;z-index:5;
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    padding:12px 10px;border-radius:10px;
+    background:rgba(6,9,13,.72);backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+  }
+  .signal-housing .big-lamp{
+    width:34px;height:34px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #2a323d, #171c23 70%);
+    border:1px solid rgba(255,255,255,.07);
+    transition:background .25s ease, box-shadow .25s ease;
+  }
+  .signal-housing .big-lamp.on.r{background:radial-gradient(circle at 35% 30%, #ff8a7a, var(--red) 55%);box-shadow:0 0 18px 6px rgba(255,71,71,.65),0 0 46px 14px rgba(255,71,71,.28)}
+  .signal-housing .big-lamp.on.y{background:radial-gradient(circle at 35% 30%, #ffe08a, var(--amber) 55%);box-shadow:0 0 18px 6px rgba(255,179,0,.65),0 0 46px 14px rgba(255,179,0,.28)}
+  .signal-housing .big-lamp.on.g{background:radial-gradient(circle at 35% 30%, #8effc9, var(--green) 55%);box-shadow:0 0 18px 6px rgba(52,211,153,.65),0 0 46px 14px rgba(52,211,153,.28)}
+  .signal-housing .phase-label{
+    font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--dim);
+    margin-top:2px;
+  }
+
+  /* ---------- main grid ---------- */
+  .console{display:grid;grid-template-columns:1.55fr 1fr;gap:1px;background:var(--hair);max-width:1440px;margin:0 auto}
+  @media (max-width:980px){.console{grid-template-columns:1fr}}
+
+  .pane{background:var(--bg)}
+  .pane-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 18px;border-bottom:1px solid var(--hair);
+  }
+  .pane-head .label{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--dim);
+  }
+  .pane-head .meta{font-family:var(--font-mono);font-size:11px;color:var(--dim-2)}
+
+  /* ---------- video hero ---------- */
+  .scope{position:relative;background:#000;aspect-ratio:4/3;overflow:hidden;margin:16px 18px;border:1px solid var(--hair)}
+  .scope img{width:100%;height:100%;object-fit:contain;display:block;filter:saturate(1.05)}
+  .scope .corner{position:absolute;width:22px;height:22px;pointer-events:none}
+  .scope .corner::before,.scope .corner::after{content:'';position:absolute;background:var(--amber)}
+  .scope .c-tl{top:8px;left:8px}.scope .c-tr{top:8px;right:8px}.scope .c-bl{bottom:8px;left:8px}.scope .c-br{bottom:8px;right:8px}
+  .scope .corner::before{width:100%;height:2px;top:0}
+  .scope .corner::after{width:2px;height:100%;left:0}
+  .scope .c-tr::before{left:auto;right:0}.scope .c-tr::after{left:auto;right:0}
+  .scope .c-bl::before{top:auto;bottom:0}.scope .c-bl::after{top:auto;bottom:0}
+  .scope .c-br::before{top:auto;bottom:0}.scope .c-br::after{left:auto;right:0}
+  .sweep{position:absolute;top:0;bottom:0;width:140px;pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(255,179,0,.06), transparent);
+    animation:sweep 5s linear infinite;
+  }
+  @keyframes sweep{0%{left:-140px}100%{left:100%}}
+  .scope-tag{position:absolute;bottom:10px;right:12px;font-family:var(--font-mono);font-size:11px;color:var(--amber);background:rgba(0,0,0,.5);padding:3px 8px;border:1px solid rgba(255,179,0,.35);letter-spacing:.06em}
+
+  /* ---------- flow instrument cluster ---------- */
+  .cluster{display:grid;grid-template-columns:repeat(3,1fr)}
+  .gauge{padding:16px 18px;border-right:1px solid var(--hair)}
+  .gauge:last-child{border-right:none}
+  .gauge .num{font-family:var(--font-mono);font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+  .gauge .num.amber{color:var(--amber)}
+  .gauge .num.green{color:var(--green)}
+  .gauge .cap{font-family:var(--font-mono);font-size:10.5px;color:var(--dim);letter-spacing:.09em;margin-top:6px}
+
+  /* ---------- class spectrum ---------- */
+  .spectrum{padding:14px 18px}
+  .spectrum-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-family:var(--font-mono);font-size:12px}
+  .spectrum-row:last-child{margin-bottom:0}
+  .spectrum-row .name{width:78px;color:var(--dim);flex-shrink:0}
+  .spectrum-row .bar-track{flex:1;height:6px;background:var(--hair-soft);position:relative;overflow:hidden}
+  .spectrum-row .bar-fill{position:absolute;inset:0;width:0%;background:linear-gradient(90deg, var(--amber-dim), var(--amber));transition:width .4s ease}
+  .spectrum-row .count{width:36px;text-align:right;color:var(--text);font-weight:600;flex-shrink:0}
+  .empty-note{font-family:var(--font-mono);font-size:12px;color:var(--dim-2);padding:4px 0}
+
+  /* ---------- violation totals row ---------- */
+  .vio-totals{display:flex;border-bottom:1px solid var(--hair)}
+  .vio-tick{flex:1;padding:14px 16px;border-right:1px solid var(--hair);transition:background .3s}
+  .vio-tick:last-child{border-right:none}
+  .vio-tick .n{font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--dim-2);font-variant-numeric:tabular-nums}
+  .vio-tick.active .n{color:var(--red)}
+  .vio-tick .l{font-family:var(--font-mono);font-size:10px;color:var(--dim);letter-spacing:.08em;margin-top:3px}
+
+  /* ---------- violation log (teletype) ---------- */
+  .log{max-height:420px;overflow-y:auto;font-family:var(--font-mono);font-size:12px}
+  .log-row{
+    display:grid;grid-template-columns:64px 90px 1fr 70px;gap:10px;
+    padding:8px 18px 8px 14px;border-bottom:1px solid var(--hair-soft);align-items:center;
+    border-left:3px solid transparent;
+  }
+  .log-row.wrong_way,.log-row.red_light{border-left-color:var(--red)}
+  .log-row.illegal_lane_change{border-left-color:var(--amber)}
+  .log-row .t{color:var(--dim-2)}
+  .log-row .type{font-weight:600;letter-spacing:.02em}
+  .log-row .type.wrong_way{color:var(--red)}
+  .log-row .type.red_light{color:var(--red)}
+  .log-row .type.illegal_lane_change{color:var(--amber)}
+  .log-row .veh{color:var(--dim)}
+  .log-row .id{color:var(--dim-2);text-align:right}
+  .log-empty{padding:28px 18px;text-align:center;color:var(--dim-2);font-family:var(--font-mono);font-size:12px}
+
+  footer{
+    max-width:1440px;margin:0 auto;padding:14px 24px;
+    font-family:var(--font-mono);font-size:10.5px;color:var(--dim-2);
+    display:flex;justify-content:space-between;border-top:1px solid var(--hair);
+  }
+
+  @media (max-width:600px){
+    .brand .title{font-size:13px;white-space:nowrap}
+    .topstrip{padding:12px 14px;flex-wrap:wrap;gap:10px}
+    .topstrip .right{gap:6px}
+    .instrument{padding:5px 8px;font-size:11px}
+    .scope{margin:12px 14px}
+    .pane-head{padding:10px 14px}
+    .log-row{grid-template-columns:52px 76px 1fr 50px;padding:8px 14px}
+  }
+</style>
+</head>
+<body>
+
+<div class="accent-bar"></div>
+<div class="topstrip">
+  <div class="left">
+    <div class="blip"><div class="ring"></div><div class="dot"></div></div>
+    <div class="brand">
+      <div class="title">TRAFFIC OPS CONSOLE</div>
+      <div class="sub" id="uptimeLine">LINK: ESTABLISHING…</div>
+    </div>
+  </div>
+  <div class="right">
+    <div class="instrument">FPS <b id="fpsVal">--</b></div>
+    <div class="instrument">PRESENT <b id="presentVal">--</b></div>
+  </div>
+</div>
+
+<div class="console">
+  <div class="pane">
+    <div class="pane-head"><span class="label">CAM-01 · LIVE FEED</span><span class="meta" id="feedMeta">640×480</span></div>
+    <div class="scope">
+      <img id="videoFeed" src="/video_feed" alt="live traffic feed">
+      <div class="sweep"></div>
+      <div class="corner c-tl"></div><div class="corner c-tr"></div>
+      <div class="corner c-bl"></div><div class="corner c-br"></div>
+      <div class="scope-tag" id="scopeTag">● REC</div>
+      <div class="signal-housing" id="signalHousing" title="Signal phase">
+        <span class="big-lamp r" id="lampR"></span>
+        <span class="big-lamp y" id="lampY"></span>
+        <span class="big-lamp g" id="lampG"></span>
+        <span class="phase-label" id="phaseLabel">--</span>
+      </div>
+    </div>
+
+    <div class="pane-head" style="border-top:1px solid var(--hair)"><span class="label">FLOW TELEMETRY</span></div>
+    <div class="cluster">
+      <div class="gauge"><div class="num amber" id="totalNum">0</div><div class="cap">TOTAL COUNTED</div></div>
+      <div class="gauge"><div class="num green" id="inNum">0</div><div class="cap">INBOUND</div></div>
+      <div class="gauge"><div class="num" id="outNum" style="color:var(--text)">0</div><div class="cap">OUTBOUND</div></div>
+    </div>
+
+    <div class="pane-head" style="border-top:1px solid var(--hair)"><span class="label">CLASS BREAKDOWN</span></div>
+    <div class="spectrum" id="classSpectrum"><div class="empty-note">awaiting detections…</div></div>
+  </div>
+
+  <div class="pane">
+    <div class="pane-head"><span class="label">VIOLATION TOTALS</span></div>
+    <div class="vio-totals">
+      <div class="vio-tick" id="tickWrongWay"><div class="n" id="nWrongWay">0</div><div class="l">WRONG WAY</div></div>
+      <div class="vio-tick" id="tickRedLight"><div class="n" id="nRedLight">0</div><div class="l">RED LIGHT</div></div>
+      <div class="vio-tick" id="tickLaneChange"><div class="n" id="nLaneChange">0</div><div class="l">LANE CUT-IN</div></div>
+    </div>
+    <div class="pane-head"><span class="label">VIOLATION LOG</span><span class="meta">LIVE</span></div>
+    <div class="log" id="violationLog"><div class="log-empty">no violations recorded yet</div></div>
+  </div>
+</div>
+
+<footer>
+  <span>MQTT + FASTAPI TELEMETRY BROKER</span>
+  <span id="clockLine">WS /ws/live · ~1s</span>
+</footer>
+
+<script>
+const fmt = (n) => (n ?? 0).toLocaleString();
+
+function renderSpectrum(byClass){
+  const el = document.getElementById('classSpectrum');
+  const entries = Object.entries(byClass || {});
+  if(!entries.length){ el.innerHTML = '<div class="empty-note">awaiting detections…</div>'; return; }
+  const max = Math.max(...entries.map(([,c]) => c), 1);
+  el.innerHTML = entries.map(([name, count]) => `
+    <div class="spectrum-row">
+      <span class="name">${name}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${(count/max*100).toFixed(0)}%"></span></span>
+      <span class="count">${fmt(count)}</span>
+    </div>`).join('');
+}
+
+function typeLabel(type){
+  return ({wrong_way:'WRONG WAY', red_light:'RED LIGHT', illegal_lane_change:'LANE CUT-IN'})[type] || type.toUpperCase();
+}
+
+function renderLog(list){
+  const el = document.getElementById('violationLog');
+  if(!list || !list.length){ el.innerHTML = '<div class="log-empty">no violations recorded yet</div>'; return; }
+  el.innerHTML = list.slice().reverse().map(v => {
+    const t = new Date((v.timestamp||0)*1000).toLocaleTimeString([], {hour12:false});
+    return `<div class="log-row ${v.type}">
+      <span class="t">${t}</span>
+      <span class="type ${v.type}">${typeLabel(v.type)}</span>
+      <span class="veh">${v.vehicle_class || 'vehicle'}</span>
+      <span class="id">#${v.track_id}</span>
+    </div>`;
+  }).join('');
+}
+
+function setSignal(phase){
+  const map = {GREEN:'lampG', YELLOW:'lampY', RED:'lampR'};
+  ['lampR','lampY','lampG'].forEach(id => document.getElementById(id).className = 'big-lamp ' + id.slice(-1).toLowerCase());
+  const active = map[phase];
+  if(active){
+    const cls = active === 'lampR' ? 'r' : active === 'lampY' ? 'y' : 'g';
+    document.getElementById(active).className = 'big-lamp on ' + cls;
+  }
+  document.getElementById('phaseLabel').textContent = phase || '--';
+}
+
+function connect(){
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}/ws/live`);
+
+  ws.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+    const m = data.metrics || {};
+    const flow = m.flow || {};
+    const viol = m.violations || {};
+
+    document.getElementById('uptimeLine').textContent = 'LINK: STABLE';
+    document.getElementById('fpsVal').textContent = (data.fps||0).toFixed(1);
+    document.getElementById('presentVal').textContent = fmt(flow.currently_present);
+
+    document.getElementById('totalNum').textContent = fmt(flow.total_count);
+    document.getElementById('inNum').textContent = fmt((flow.by_direction||{}).inbound);
+    document.getElementById('outNum').textContent = fmt((flow.by_direction||{}).outbound);
+    renderSpectrum(flow.by_class);
+
+    const totals = viol.totals || {};
+    const wrongWay = totals.wrong_way || 0, redLight = totals.red_light || 0, laneChange = totals.illegal_lane_change || 0;
+    document.getElementById('nWrongWay').textContent = fmt(wrongWay);
+    document.getElementById('nRedLight').textContent = fmt(redLight);
+    document.getElementById('nLaneChange').textContent = fmt(laneChange);
+    document.getElementById('tickWrongWay').classList.toggle('active', wrongWay > 0);
+    document.getElementById('tickRedLight').classList.toggle('active', redLight > 0);
+    document.getElementById('tickLaneChange').classList.toggle('active', laneChange > 0);
+
+    setSignal(viol.signal_phase);
+    renderLog(data.violations && data.violations.length ? data.violations : (viol.recent || []));
+  };
+
+  ws.onclose = () => {
+    document.getElementById('uptimeLine').textContent = 'LINK: RECONNECTING…';
+    setTimeout(connect, 1500);
+  };
+  ws.onerror = () => ws.close();
+}
+connect();
+</script>
+</body>
+</html>
